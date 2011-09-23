@@ -68,7 +68,17 @@ func vote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	channel.Send(ctx, user.ID, "You just voted:"+r.Form["vote"][0])
+	user_query := datastore.NewQuery("User").Ancestor(room_key)
+	var users []User
+	_, e = user_query.GetAll(ctx, &users)
+	if e != nil {
+		error(w, r, "Getting users in room", e)
+		return
+	}
+	for _, ouser := range users {
+		msg := fmt.Sprintf("%s voted %s", user.ID[0:4], r.Form["vote"][0])
+		channel.Send(ctx, ouser.ID, msg)
+	}
 }
 
 func enterRoom(w http.ResponseWriter, r *http.Request) {
