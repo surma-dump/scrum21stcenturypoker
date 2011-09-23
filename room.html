@@ -1,0 +1,26 @@
+<html>
+	<head>
+	<title>{Name}</title>
+	</head>
+	<body>
+		<div id="buttons">
+			{.repeated section Scale}
+				<button value="{@}">{@}</button>
+			{.end}
+		</div>
+		<div id="result">
+		</div>
+		<div id="info">
+		{.section IsAdmin}
+			You are Admin!
+		{.end}
+		</div>
+
+		<script>
+			window.CHANNEL_TOKEN = "{ChannelToken}";
+		</script>
+		<script src="/_ah/channel/jsapi"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+		<script src="/static/poker.js"></script>
+	</body>
+</html>
