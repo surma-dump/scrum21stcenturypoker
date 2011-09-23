@@ -6,6 +6,9 @@ import (
 	"rand"
 	"fmt"
 	"os"
+	"appengine"
+	"appengine/datastore"
+	"appengine/channel"
 )
 
 var (
@@ -17,15 +20,34 @@ const (
 	COOKIE_NAME = "s21cp_user"
 )
 
-type User string
+type User struct {
+	ID string
+	Channel string
+}
 
-func getUser(w http.ResponseWriter, r *http.Request) (User, os.Error) {
+func getUser(ctx appengine.Context, w http.ResponseWriter, r *http.Request) (User, os.Error) {
 	cookie := getUserCookie(r)
+	user := User{}
+	var e os.Error
 	if cookie == nil {
 		cookie = generateNewUserCookie()
 		http.SetCookie(w, cookie)
+		user.ID = cookie.Value
+		user.Channel, e = channel.Create(ctx, user.ID)
+		if e != nil {
+			return user, e
+		}
+		user_key := datastore.NewKey("User", cookie.Value, 0, nil)
+		_, e = datastore.Put(ctx, user_key, &user)
+		if e != nil {
+			return user, e
+		}
 	}
-	return User(cookie.Value), nil
+	if user.ID == "" {
+		user_key := datastore.NewKey("User", cookie.Value, 0, nil)
+		e = datastore.Get(ctx, user_key, &user)
+	}
+	return user, e
 }
 
 func getUserCookie(r *http.Request) *http.Cookie {

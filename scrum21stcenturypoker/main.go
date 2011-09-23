@@ -5,6 +5,7 @@ import (
 	"os"
 	"appengine"
 	"appengine/datastore"
+	"appengine/channel"
 	"fmt"
 )
 
@@ -13,6 +14,7 @@ func init() {
 	http.Handle("/static/", http.FileServer("./", ""))
 	http.HandleFunc("/enterRoom", enterRoom)
 	http.HandleFunc("/room/", poker)
+	http.HandleFunc("/vote", vote)
 }
 
 func error(w http.ResponseWriter, r *http.Request, prefix string, e os.Error) {
@@ -22,7 +24,8 @@ func error(w http.ResponseWriter, r *http.Request, prefix string, e os.Error) {
 }
 
 func roomchooser(w http.ResponseWriter, r *http.Request) {
-	_, e := getUser(w, r)
+	ctx := appengine.NewContext(r)
+	_, e := getUser(ctx, w, r)
 	if e != nil {
 		error(w, r, "User management", e)
 	}
@@ -31,8 +34,41 @@ func roomchooser(w http.ResponseWriter, r *http.Request) {
 
 type Room struct {
 	Name  string
-	Admin User
+	AdminID string
 	Scale []string
+}
+
+func vote(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	e := r.ParseForm()
+	if e != nil {
+		error(w, r, "Form parsing", e)
+		return
+	}
+
+	user, e := getUser(ctx, w, r)
+	if e != nil {
+		error(w, r, "User management", e)
+	}
+	rooms, ok := r.Form["room"]
+	room_name := rooms[0] // ?
+	if !ok {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	}
+
+	room_key := datastore.NewKey("Room", room_name, 0, nil)
+	room := Room{}
+
+	e = datastore.Get(ctx, room_key, &room)
+	if e == nil {
+
+	} else {
+		error(w, r, "Room existence check", e)
+		return
+	}
+
+	channel.Send(ctx, user.ID, "You just voted:"+r.Form["vote"][0])
 }
 
 func enterRoom(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +80,7 @@ func enterRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, e := getUser(w, r)
+	user, e := getUser(ctx, w, r)
 	if e != nil {
 		error(w, r, "User management", e)
 	}
@@ -65,7 +101,7 @@ func enterRoom(w http.ResponseWriter, r *http.Request) {
 		// Room has to be created
 		_, e = datastore.Put(ctx, room_key, &Room{
 			Name:  room_name,
-			Admin: user,
+			AdminID: user.ID,
 			Scale: []string{"0", "0.5", "1", "2", "3", "5", "8", "13", "21", "40", "80", "120", "Infinite"},
 		})
 		if e != nil {
@@ -77,11 +113,18 @@ func enterRoom(w http.ResponseWriter, r *http.Request) {
 		error(w, r, "Room existence check", e)
 		return
 	}
+
+	user_key := datastore.NewKey("User", user.ID, 0, room_key)
+	_, e = datastore.Put(ctx, user_key, &user)
+	if e != nil {
+		error(w, r, "Adding to room", e)
+		return
+	}
 }
 
 func poker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
-	user, e := getUser(w, r)
+	user, e := getUser(ctx, w, r)
 	if e != nil {
 		error(w, r, "User management", e)
 	}
@@ -98,7 +141,8 @@ func poker(w http.ResponseWriter, r *http.Request) {
 	}
 	room_template.Execute(w, map[string]interface{}{
 		"Name":    room.Name,
-		"IsAdmin": room.Admin == user,
+		"IsAdmin": room.AdminID == user.ID,
 		"Scale":   room.Scale,
+		"ChannelToken": user.Channel,
 	})
 }

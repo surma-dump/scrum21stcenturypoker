@@ -1,12 +1,13 @@
-(function($, chantok) {
-	var chan = new goog.appengine.Channel(chantok);
+(function($, token, room_name) {
+	var chan = new goog.appengine.Channel(token);
 	var socket = chan.open();
 
 	function vote(val) {
-		alert("Voting for "+val);
+		$.post("/vote", {room: room_name, vote: val});
 	}
 
 	socket.onmessage = function(msg) {
+		$("<div>").text("Got: "+msg.data).appendTo("#result");
 	}
 
 	$("#buttons button").each(function() {
@@ -14,4 +15,4 @@
 			vote(this.value);
 		});
 	});
-})(jQuery, window.CHANNEL_TOKEN);
+})(jQuery, window.CHANNEL_TOKEN, window.ROOM);
