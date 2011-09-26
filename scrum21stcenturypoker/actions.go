@@ -9,22 +9,31 @@ import (
 
 type Action interface {
 	GetName() string
+	Execute(c *PokerClient) (interface{}, os.Error)
 }
 
 type EnterRoomAction struct {
 	Room string
 }
 
-func (EnterRoomAction) GetName() string {
+func (*EnterRoomAction) GetName() string {
 	return "Enter"
+}
+
+func (this *EnterRoomAction) Execute(pc *PokerClient) (interface{}, os.Error) {
+	return nil, nil
 }
 
 type ExitRoomAction struct {
 	Room string
 }
 
-func (ExitRoomAction) GetName() string {
+func (*ExitRoomAction) GetName() string {
 	return "Exit"
+}
+
+func (this *ExitRoomAction) Execute(pc *PokerClient) (interface{}, os.Error) {
+	return nil, nil
 }
 
 type VoteAction struct {
@@ -32,8 +41,12 @@ type VoteAction struct {
 	Vote int
 }
 
-func (VoteAction) GetName() string {
+func (*VoteAction) GetName() string {
 	return "Vote"
+}
+
+func (this *VoteAction) Execute(pc *PokerClient) (interface{}, os.Error) {
+	return nil, nil
 }
 
 var (
@@ -66,21 +79,21 @@ func parseAction(room, action_name string, data http.Values) (Action, os.Error) 
 	return nil, ErrInvalidAction
 }
 
-func parseEnterRoomAction(room, action_name string, data http.Values) (EnterRoomAction, os.Error) {
-	return EnterRoomAction{
+func parseEnterRoomAction(room, action_name string, data http.Values) (*EnterRoomAction, os.Error) {
+	return &EnterRoomAction{
 		Room: room,
 	}, nil
 }
 
-func parseExitRoomAction(room, action_name string, data http.Values) (ExitRoomAction, os.Error) {
-	return ExitRoomAction{
+func parseExitRoomAction(room, action_name string, data http.Values) (*ExitRoomAction, os.Error) {
+	return &ExitRoomAction{
 		Room: room,
 	}, nil
 }
 
-func parseVoteAction(room, action_name string, data http.Values) (VoteAction, os.Error) {
+func parseVoteAction(room, action_name string, data http.Values) (*VoteAction, os.Error) {
 	vote, e := strconv.Atoi(data.Get("vote"))
-	return VoteAction{
+	return &VoteAction{
 		Room: room,
 		Vote: vote,
 	}, e

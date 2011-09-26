@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 	"appengine"
+	"json"
 )
 
 type PokerClient struct {
@@ -19,11 +20,20 @@ type PokerClient struct {
 func (pc *PokerClient) SendError(prefix string, e os.Error) {
 	pc.ctx.Errorf("%s: %s", prefix, e.String())
 	pc.WriteHeader(500)
-	pc.Send("NAIN!")
+	pc.SendString("NAIN!")
 }
 
-func (pc *PokerClient) Send(msg string) {
+func (pc *PokerClient) SendString(msg string) {
 	fmt.Fprint(pc, msg)
+}
+
+func (pc *PokerClient) SendData(data interface{}) {
+	serial, e := json.Marshal(data)
+	if e != nil {
+		panic(e)
+	}
+
+	pc.Write(serial)
 }
 
 func (pc *PokerClient) RenewIdCookie() {

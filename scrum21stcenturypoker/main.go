@@ -25,7 +25,12 @@ func Poker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client.Send("You did this: " + action.GetName())
+	data, e := action.Execute(client)
+	if e != nil {
+		client.SendError("Executing action \""+action.GetName()+"\"", e)
+	} else {
+		client.SendData(data)
+	}
 }
 
 /*func roomchooser(w http.ResponseWriter, r *http.Request) {
