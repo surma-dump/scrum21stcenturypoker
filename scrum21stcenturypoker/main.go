@@ -2,28 +2,33 @@ package scrum21stcenturypoker
 
 import (
 	"http"
-	"os"
-	"appengine"
-	"appengine/datastore"
-	"appengine/channel"
-	"fmt"
+	// "os"
+	// "appengine"
 )
 
 func init() {
-	http.HandleFunc("/", roomchooser)
-	http.Handle("/static/", http.FileServer("./", ""))
-	http.HandleFunc("/enterRoom", enterRoom)
-	http.HandleFunc("/room/", poker)
-	http.HandleFunc("/vote", vote)
+	http.Handle("/", http.FileServer("static", ""))
+	http.HandleFunc("/rooms/", Poker)
 }
 
-func error(w http.ResponseWriter, r *http.Request, prefix string, e os.Error) {
-	ctx := appengine.NewContext(r)
-	ctx.Errorf(prefix + ": " + e.String())
-	http.Error(w, "There was an error. Sorry about that", 500)
+func Poker(w http.ResponseWriter, r *http.Request) {
+	client := NewPokerClient(w, r)
+	e := r.ParseForm()
+	if e != nil {
+		client.SendError("Parsing data", e)
+		return
+	}
+
+	action, e := client.GetAction()
+	if e != nil {
+		client.SendError("Parsing action", e)
+		return
+	}
+
+	client.Send("You did this: " + action.GetName())
 }
 
-func roomchooser(w http.ResponseWriter, r *http.Request) {
+/*func roomchooser(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	_, e := getUser(ctx, w, r)
 	if e != nil {
@@ -156,3 +161,4 @@ func poker(w http.ResponseWriter, r *http.Request) {
 		"ChannelToken": user.Channel,
 	})
 }
+*/
