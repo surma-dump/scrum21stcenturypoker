@@ -2,7 +2,6 @@ package scrum21stcenturypoker
 
 import (
 	"http"
-	"os"
 	"rand"
 	"fmt"
 	"time"
@@ -10,35 +9,44 @@ import (
 	"json"
 )
 
-type PokerClient struct {
-	ctx appengine.Context
-	http.ResponseWriter
-	req *http.Request
-	id  string
+func (this *PokerClient) HandleError(e Error) {
+	this.ctx.Errorf(e.String())
+	if e.HasUserMessage() {
+		this.SendError(e.UserMessage())
+	} else {
+		this.SendError("An error occured!")
+	}
 }
 
-func (pc *PokerClient) SendError(prefix string, e os.Error) {
-	pc.ctx.Errorf("%s: %s", prefix, e.String())
-	pc.WriteHeader(500)
-	pc.SendString("NAIN!")
+func (this *PokerClient) SendError(msg string) {
+	this.WriteHeader(500)
+	this.SendData(NewErrorMessage(msg))
 }
 
-func (pc *PokerClient) SendString(msg string) {
-	fmt.Fprint(pc, msg)
-}
-
-func (pc *PokerClient) SendData(data interface{}) {
+func (this *PokerClient) SendData(data interface{}) {
 	serial, e := json.Marshal(data)
 	if e != nil {
 		panic(e)
 	}
 
-	pc.Write(serial)
+	this.Write(serial)
 }
 
-func (pc *PokerClient) RenewIdCookie() {
-	cookie := newIdCookie(pc.id)
-	http.SetCookie(pc, cookie)
+func (this *PokerClient) RenewIdCookie() {
+	cookie := newIdCookie(this.id)
+	http.SetCookie(this, cookie)
+}
+
+type PokerClient struct {
+	ctx appengine.Context
+	http.ResponseWriter
+	req  *http.Request
+	id   string
+	meta PokerClientMeta
+}
+
+type PokerClientMeta struct {
+	name string
 }
 
 func NewPokerClient(w http.ResponseWriter, r *http.Request) *PokerClient {
@@ -47,6 +55,9 @@ func NewPokerClient(w http.ResponseWriter, r *http.Request) *PokerClient {
 		ctx: appengine.NewContext(r),
 		id:  id,
 		req: r,
+		meta: PokerClientMeta{
+			name: id,
+		},
 	}
 	client.ResponseWriter = w
 	client.RenewIdCookie()
@@ -60,7 +71,7 @@ const (
 
 func getUserId(r *http.Request) (string, bool) {
 	for _, cookie := range r.Cookie {
-		if cookie.Name == ID_COOKIE && len(cookie.Value) == ID_LEN {
+		if cookie.Name == ID_COOKIE && len(cookie.Value) == ID_LEN*2 {
 			return cookie.Value, true
 		}
 	}
