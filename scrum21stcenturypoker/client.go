@@ -46,7 +46,8 @@ type PokerClient struct {
 }
 
 type PokerClientMeta struct {
-	name string
+	Name string
+	Vote int
 }
 
 func NewPokerClient(w http.ResponseWriter, r *http.Request) *PokerClient {
@@ -56,7 +57,7 @@ func NewPokerClient(w http.ResponseWriter, r *http.Request) *PokerClient {
 		id:  id,
 		req: r,
 		meta: PokerClientMeta{
-			name: id,
+			Name: id,
 		},
 	}
 	client.ResponseWriter = w

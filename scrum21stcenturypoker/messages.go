@@ -5,6 +5,7 @@ import ()
 const (
 	MSG_SUCCESS = iota
 	MSG_ERROR
+	MSG_VOTE
 )
 
 type Message struct {

@@ -65,7 +65,7 @@ func (this *RoomManager) NewRoom(room_name, adminid string) Error {
 	return nil
 }
 
-func (this *RoomManager) IsInRoom(pc *PokerClient, room_name string) bool {
+func (this *RoomManager) ClientIsInRoom(pc *PokerClient, room_name string) bool {
 	users := this.ClientsInRoom(room_name)
 	for _, user := range users {
 		if user == pc.id {
@@ -90,26 +90,59 @@ func (this *RoomManager) ClientsInRoom(room_name string) []string {
 }
 
 var (
-	ErrNoSuchRoom = &ErrorData {
+	ErrNoSuchRoom = &ErrorData{
 		InternalMessage: "Room \"%s\" does not exists",
 		ExternalMessage: "Room \"%s\" does not exists",
 	}
 )
 
+func generateClientRoomKey(id, room_name string) *datastore.Key {
+	room_key := generateRoomKey(room_name)
+	client_key := datastore.NewKey("Client", id, 0, room_key)
+	return client_key
+}
+
 func (this *RoomManager) EnterRoom(pc *PokerClient, room_name string) (string, Error) {
 	if !this.RoomExists(room_name) {
 		return "", ErrNoSuchRoom.Format(room_name)
 	}
-	room_key := generateRoomKey(room_name)
-	client_key := datastore.NewKey("Client", pc.id, 0, room_key)
-	_, e := datastore.Put(this.ctx, client_key, &pc.meta)
-	if e != nil {
-		panic(e)
-	}
-
+	// This effectively marks the membership in the room
+	this.SetClientMetaForRoom(pc, room_name)
 	c, e := channel.Create(this.ctx, room_name+"/"+pc.id)
 	if e != nil {
 		panic(e)
 	}
 	return c, nil
+}
+
+func (this *RoomManager) ExitRoom(pc *PokerClient, room_name string) {
+	client_key := generateClientRoomKey(pc.id, room_name)
+	datastore.Delete(this.ctx, client_key)
+}
+
+func (this *RoomManager) GetClientMetaForRoom(pc *PokerClient, room_name string) {
+	client_key := generateClientRoomKey(pc.id, room_name)
+	e := datastore.Get(this.ctx, client_key, &pc.meta)
+	if e != nil {
+		panic(e)
+	}
+}
+
+func (this *RoomManager) SetClientMetaForRoom(pc *PokerClient, room_name string) {
+	client_key := generateClientRoomKey(pc.id, room_name)
+	_, e := datastore.Put(this.ctx, client_key, &(pc.meta))
+	if e != nil {
+		panic(e)
+	}
+}
+
+func (this *RoomManager) ClientHasVoted(pc *PokerClient, room_name string) bool {
+	this.GetClientMetaForRoom(pc, room_name)
+	return pc.meta.Vote != 0
+}
+
+func (this *RoomManager) Vote(pc *PokerClient, room_name string, vote int) {
+	this.GetClientMetaForRoom(pc, room_name)
+	pc.meta.Vote = vote
+	this.SetClientMetaForRoom(pc, room_name)
 }

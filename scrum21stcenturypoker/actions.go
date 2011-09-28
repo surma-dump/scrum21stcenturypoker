@@ -38,14 +38,14 @@ func (*EnterRoomAction) GetName() string {
 
 var (
 	ErrAlreadyInRoom = &ErrorData{
-		InternalMessage: "User %s already in room \"%s\"",
+		InternalMessage: "User %s already in room \"%s\" - tried to Enter",
 		ExternalMessage: "You are already in room \"%s\"",
 	}
 )
 
 func (this *EnterRoomAction) Execute(pc *PokerClient) (interface{}, Error) {
 	roommgr := NewRoomManager(pc.ctx)
-	if roommgr.IsInRoom(pc, this.Room) {
+	if roommgr.ClientIsInRoom(pc, this.Room) {
 		return nil, ErrAlreadyInRoom.FormatInternalMessage(pc.id, this.Room).FormatExternalMessage(this.Room)
 	}
 	c, e := roommgr.EnterRoom(pc, this.Room)
@@ -59,12 +59,24 @@ type ExitRoomAction struct {
 	Room string
 }
 
+var (
+	ErrNotInRoom = &ErrorData{
+		InternalMessage: "User %s not in room \"%s\" - tried to %s",
+		ExternalMessage: "You are not in room \"%s\"",
+	}
+)
+
 func (*ExitRoomAction) GetName() string {
 	return "Exit"
 }
 
 func (this *ExitRoomAction) Execute(pc *PokerClient) (interface{}, Error) {
-	return nil, nil
+	roommgr := NewRoomManager(pc.ctx)
+	if !roommgr.ClientIsInRoom(pc, this.Room) {
+		return nil, ErrNotInRoom.FormatInternalMessage(pc.id, this.Room, this.GetName()).FormatExternalMessage(this.Room)
+	}
+	roommgr.ExitRoom(pc, this.Room)
+	return NewSuccessMessage("Exited Room", this.Room), nil
 }
 
 type VoteAction struct {
@@ -72,12 +84,27 @@ type VoteAction struct {
 	Vote int
 }
 
+var (
+	ErrMultipleVotes = &ErrorData{
+		InternalMessage: "User %s tried to vote twice in \"%s\"",
+		ExternalMessage: "You voted already",
+	}
+)
+
 func (*VoteAction) GetName() string {
 	return "Vote"
 }
 
 func (this *VoteAction) Execute(pc *PokerClient) (interface{}, Error) {
-	return nil, nil
+	roommgr := NewRoomManager(pc.ctx)
+	if !roommgr.ClientIsInRoom(pc, this.Room) {
+		return nil, ErrNotInRoom.FormatInternalMessage(pc.id, this.Room, this.GetName()).FormatExternalMessage(this.Room)
+	}
+	if roommgr.ClientHasVoted(pc, this.Room) {
+		return nil, ErrMultipleVotes.FormatInternalMessage(pc.id, this.Room)
+	}
+	roommgr.Vote(pc, this.Room, this.Vote)
+	return NewSuccessMessage("You voted", this.Room), nil
 }
 
 var (
